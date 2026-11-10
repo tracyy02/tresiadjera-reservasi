@@ -1,0 +1,238 @@
+{% extends "base.html" %}
+{% from "_icons.html" import icon %}
+{% block title %}Ajukan reservasi{% endblock %}
+
+{% block content %}
+<nav class="breadcrumb" aria-label="Breadcrumb">
+  <a href="{{ url_for('reservations') }}">Reservasi</a>
+  <span aria-hidden="true">/</span>
+  <span aria-current="page">Ajukan baru</span>
+</nav>
+
+<section class="page-head">
+  <div class="page-head-copy">
+    <p class="eyebrow">Formulir permohonan</p>
+    <h1>Ajukan reservasi ruangan</h1>
+    <p class="page-sub">Isi waktu dan tujuan kegiatan. Sistem akan memeriksa bentrok sebelum permohonan dikirim.</p>
+  </div>
+</section>
+
+{% if errors %}
+  <div class="alert alert--error" role="alert">
+    {{ icon('alert', 20) }}
+    <div>
+      <p><strong>Permohonan belum bisa dikirim.</strong> Periksa {{ errors|length }} hal berikut:</p>
+      <ul class="alert-list">
+        {% for key, message in errors.items() %}
+          <li><a href="#field-{{ 'start_time' if key == 'slot' else key }}">{{ message }}</a></li>
+        {% endfor %}
+      </ul>
+    </div>
+  </div>
+{% endif %}
+
+{% if conflicts %}
+  <section class="conflict-panel" aria-labelledby="conflict-title">
+    <div class="conflict-head">
+      {{ icon('alert', 20) }}
+      <h2 id="conflict-title">Jadwal bertabrakan</h2>
+    </div>
+    <ul>
+      {% for item in conflicts %}
+        <li>
+          <strong>{{ item['start_time']|jam }}–{{ item['end_time']|jam }} WITA</strong>
+          <span>{{ item['pic_name'] }} · {{ item['code'] }}</span>
+          <span class="badge badge--{{ 'warning' if item['status'] == 'pending' else 'success' }}">{{ 'Menunggu persetujuan' if item['status'] == 'pending' else 'Disetujui' }}</span>
+        </li>
+      {% endfor %}
+    </ul>
+    <p>Pilih waktu lain, atau periksa lagi bila jeda pergantian baru diubah admin.</p>
+  </section>
+{% endif %}
+
+<form method="post" class="reservation-form" novalidate data-reservation-form data-availability-url="{{ url_for('availability_api') }}">
+  <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+
+  <div class="form-layout">
+    <div class="form-main">
+      <section class="card" aria-labelledby="who-title">
+        <div class="section-head">
+          <span class="section-number" aria-hidden="true">01</span>
+          <div>
+            <h2 id="who-title">Pemohon</h2>
+            <p class="card-sub">Kategori peminjam, identitas, dan kontak yang dapat dihubungi.</p>
+          </div>
+        </div>
+
+        <div class="form-grid">
+          <div class="field" id="field-borrower_type">
+            <label for="borrower_type">Jenis peminjam <span class="req" aria-hidden="true">*</span></label>
+            <select id="borrower_type" name="borrower_type" required data-borrower-type
+                    aria-describedby="borrower_type-hint{% if errors.get('borrower_type') %} borrower_type-error{% endif %}"
+                    {% if errors.get('borrower_type') %}aria-invalid="true"{% endif %}>
+              <option value="mahasiswa" {% if values['borrower_type'] == 'mahasiswa' %}selected{% endif %}>Mahasiswa</option>
+              <option value="dosen" {% if values['borrower_type'] == 'dosen' %}selected{% endif %}>Dosen</option>
+            </select>
+            <p class="hint" id="borrower_type-hint">Menentukan label identitas yang perlu diisi.</p>
+            {% if errors.get('borrower_type') %}<p class="error-text" id="borrower_type-error">{{ errors['borrower_type'] }}</p>{% endif %}
+          </div>
+          <div class="field" id="field-pic_name">
+            <label for="pic_name"><span data-borrower-name-label>{{ 'Nama dosen' if values['borrower_type'] == 'dosen' else 'Nama mahasiswa' }}</span> <span class="req" aria-hidden="true">*</span></label>
+            <input id="pic_name" name="pic_name" type="text" autocomplete="name" value="{{ values['pic_name'] }}"
+                   placeholder="Nama lengkap peminjam" required
+                   aria-describedby="pic_name-hint{% if errors.get('pic_name') %} pic_name-error{% endif %}"
+                   {% if errors.get('pic_name') %}aria-invalid="true"{% endif %}>
+            <p class="hint" id="pic_name-hint">Nama yang dapat dihubungi admin.</p>
+            {% if errors.get('pic_name') %}<p class="error-text" id="pic_name-error">{{ errors['pic_name'] }}</p>{% endif %}
+          </div>
+          <div class="field" id="field-identity_number">
+            <label for="identity_number"><span data-borrower-id-label>{{ 'NIDN/NIP' if values['borrower_type'] == 'dosen' else 'NIM' }}</span> <span class="req" aria-hidden="true">*</span></label>
+            <input id="identity_number" name="identity_number" type="text" inputmode="numeric" value="{{ values['identity_number'] }}"
+                   placeholder="{{ 'contoh: 0012345678' if values['borrower_type'] == 'dosen' else 'contoh: 2023010101' }}"
+                   maxlength="20" autocomplete="off" required
+                   aria-describedby="identity-hint{% if errors.get('identity_number') %} identity_number-error{% endif %}"
+                   {% if errors.get('identity_number') %}aria-invalid="true"{% endif %}>
+            <p class="hint" id="identity-hint" data-identity-hint>{% if values['borrower_type'] == 'dosen' %}NIDN atau NIP dosen.{% else %}NIM peminjam.{% endif %}</p>
+            {% if errors.get('identity_number') %}<p class="error-text" id="identity_number-error">{{ errors['identity_number'] }}</p>{% endif %}
+          </div>
+          <div class="field">
+            <label for="pic_phone">Kontak peminjam <span class="req" aria-hidden="true">*</span></label>
+            <input id="pic_phone" name="pic_phone" type="tel" inputmode="tel" autocomplete="tel" value="{{ values['pic_phone'] }}"
+                   placeholder="08xx xxxx xxxx" required
+                   aria-describedby="pic_phone-hint{% if errors.get('pic_phone') %} pic_phone-error{% endif %}"
+                   {% if errors.get('pic_phone') %}aria-invalid="true"{% endif %}>
+            <p class="hint" id="pic_phone-hint">Nomor aktif untuk koordinasi hari kegiatan.</p>
+            {% if errors.get('pic_phone') %}<p class="error-text" id="pic_phone-error">{{ errors['pic_phone'] }}</p>{% endif %}
+          </div>
+        </div>
+      </section>
+
+      <section class="card" aria-labelledby="when-title">
+        <div class="section-head">
+          <span class="section-number" aria-hidden="true">02</span>
+          <div>
+            <h2 id="when-title">Ruangan dan waktu</h2>
+            <p class="card-sub">Jam dalam WITA. Rentang waktu tidak boleh bertabrakan dengan pengajuan lain.</p>
+          </div>
+        </div>
+
+        <div class="field" id="field-room_id">
+          <label for="room_id">Ruangan <span class="req" aria-hidden="true">*</span></label>
+          <select id="room_id" name="room_id" required data-room-select
+                  aria-describedby="room-hint{% if errors.get('room_id') %} room_id-error{% endif %}"
+                  {% if errors.get('room_id') %}aria-invalid="true"{% endif %}>
+            <option value="">Pilih ruangan</option>
+            {% for building, rooms in rooms_grouped.items() %}
+              <optgroup label="{{ building }}">
+                {% for room in rooms %}
+                  <option value="{{ room['id'] }}" {% if values['room_id'] == room['id']|string %}selected{% endif %}>
+                    {{ room['code'] }} · {{ room['name'] }} ({{ room['kind'] }})
+                  </option>
+                {% endfor %}
+              </optgroup>
+            {% endfor %}
+            <option value="other" {% if values['room_id'] == 'other' %}selected{% endif %}>Lainnya — isi nama ruangan</option>
+          </select>
+          <p class="hint" id="room-hint">Status ketersediaan muncul otomatis setelah ruangan dipilih.</p>
+          {% if errors.get('room_id') %}<p class="error-text" id="room_id-error">{{ errors['room_id'] }}</p>{% endif %}
+        </div>
+
+        <div class="field" id="field-custom_room" data-custom-room {% if values['room_id'] != 'other' %}hidden{% endif %}>
+          <label for="custom_room">Nama ruangan lain <span class="req" aria-hidden="true">*</span></label>
+          <input id="custom_room" name="custom_room" type="text" value="{{ values['custom_room'] }}"
+                 placeholder="contoh: Selasar Gedung C"
+                 aria-describedby="custom_room-hint{% if errors.get('custom_room') %} custom_room-error{% endif %}"
+                 {% if values['room_id'] != 'other' %}disabled{% endif %}
+                 {% if errors.get('custom_room') %}aria-invalid="true"{% endif %}>
+          <p class="hint" id="custom_room-hint">Ruangan di luar daftar tetap diperiksa bentrok berdasarkan nama yang sama.</p>
+          {% if errors.get('custom_room') %}<p class="error-text" id="custom_room-error">{{ errors['custom_room'] }}</p>{% endif %}
+        </div>
+
+        <div class="form-grid form-grid--three">
+          <div class="field" id="field-date">
+            <label for="date">Tanggal <span class="req" aria-hidden="true">*</span></label>
+            <input id="date" name="date" type="date" value="{{ values['date'] }}" min="{{ min_date }}" max="{{ max_date }}" required
+                   aria-describedby="date-hint{% if errors.get('date') %} date-error{% endif %}"
+                   {% if errors.get('date') %}aria-invalid="true"{% endif %}>
+            <p class="hint" id="date-hint">Maksimal {{ settings['max_advance_days'] }} hari ke depan.</p>
+            {% if errors.get('date') %}<p class="error-text" id="date-error">{{ errors['date'] }}</p>{% endif %}
+          </div>
+          <div class="field" id="field-start_time">
+            <label for="start_time">Jam mulai <span class="req" aria-hidden="true">*</span></label>
+            <input id="start_time" name="start_time" type="time" step="900" value="{{ values['start_time'] }}"
+                   min="{{ settings['open_time'] }}" max="{{ settings['close_time'] }}" required
+                   aria-describedby="time-hint{% if errors.get('start_time') %} start_time-error{% endif %}"
+                   {% if errors.get('start_time') %}aria-invalid="true"{% endif %}>
+            {% if errors.get('start_time') %}<p class="error-text" id="start_time-error">{{ errors['start_time'] }}</p>{% endif %}
+          </div>
+          <div class="field" id="field-end_time">
+            <label for="end_time">Jam selesai <span class="req" aria-hidden="true">*</span></label>
+            <input id="end_time" name="end_time" type="time" step="900" value="{{ values['end_time'] }}"
+                   min="{{ settings['open_time'] }}" max="{{ settings['close_time'] }}" required
+                   aria-describedby="time-hint{% if errors.get('end_time') %} end_time-error{% endif %}"
+                   {% if errors.get('end_time') %}aria-invalid="true"{% endif %}>
+            {% if errors.get('end_time') %}<p class="error-text" id="end_time-error">{{ errors['end_time'] }}</p>{% endif %}
+          </div>
+        </div>
+        <p class="hint" id="time-hint">Jam operasional {{ settings['open_time']|jam }}–{{ settings['close_time']|jam }} WITA · durasi {{ settings['min_duration_minutes'] }} menit–{{ settings['max_duration_hours'] }} jam.</p>
+
+        <div class="availability" data-availability>
+          <div class="availability-head">
+            <span class="availability-icon" aria-hidden="true">{{ icon('shield', 18) }}</span>
+            <div>
+              <strong>Pemeriksaan ketersediaan</strong>
+              <p id="availability-status" data-availability-status role="status" aria-live="polite">Pilih ruangan, tanggal, dan jam untuk memeriksa bentrok.</p>
+            </div>
+          </div>
+          <div class="availability-detail" data-availability-detail></div>
+        </div>
+      </section>
+
+      <section class="card" aria-labelledby="purpose-title">
+        <div class="section-head">
+          <span class="section-number" aria-hidden="true">03</span>
+          <div>
+            <h2 id="purpose-title">Tujuan kegiatan</h2>
+            <p class="card-sub">Tuliskan kegiatan secara singkat agar admin dapat meninjau dengan cepat.</p>
+          </div>
+        </div>
+        <div class="field" id="field-purpose">
+          <label for="purpose">Deskripsi kegiatan <span class="req" aria-hidden="true">*</span></label>
+          <textarea id="purpose" name="purpose" rows="5" maxlength="500" required
+                    placeholder="contoh: Rapat kerja pengurus dan pembagian divisi kepanitiaan."
+                    aria-describedby="purpose-hint{% if errors.get('purpose') %} purpose-error{% endif %}"
+                    {% if errors.get('purpose') %}aria-invalid="true"{% endif %}>{{ values['purpose'] }}</textarea>
+          <div class="field-foot">
+            <p class="hint" id="purpose-hint">Minimal 10 karakter. Hindari data pribadi yang tidak perlu.</p>
+            <span class="char-count" data-char-count>0/500</span>
+          </div>
+          {% if errors.get('purpose') %}<p class="error-text" id="purpose-error">{{ errors['purpose'] }}</p>{% endif %}
+        </div>
+      </section>
+    </div>
+
+    <aside class="form-side">
+      <section class="card card--sticky" aria-labelledby="summary-title">
+        <h2 id="summary-title">Ringkasan</h2>
+        <dl class="summary-list">
+          <div><dt>Ruangan</dt><dd data-summary-room>Belum dipilih</dd></div>
+          <div><dt>Tanggal</dt><dd data-summary-date>{{ values['date']|tgl_singkat if values['date'] else '—' }}</dd></div>
+          <div><dt>Waktu</dt><dd data-summary-time>—</dd></div>
+          <div><dt>Durasi</dt><dd data-summary-duration>—</dd></div>
+        </dl>
+        <hr class="rule">
+        <ol class="steps">
+          <li><span>1</span><p>Permohonan tercatat dengan status <strong>Menunggu persetujuan</strong>.</p></li>
+          <li><span>2</span><p>Admin memeriksa bentrok dan meninjau kegiatan.</p></li>
+          <li><span>3</span><p>Anda mendapat notifikasi saat status berubah.</p></li>
+        </ol>
+        <p class="card-note">{{ icon('info', 15) }} Slot ikut tertahan selama pengajuan menunggu. Batalkan bila kegiatan batal.</p>
+        <button class="btn btn--primary btn--block" type="submit" data-submit>
+          {{ icon('check', 18) }} Kirim permohonan
+        </button>
+        <p class="hint hint--center">Dengan mengirim, Anda menyatakan data kegiatan benar.</p>
+      </section>
+    </aside>
+  </div>
+</form>
+{% endblock %}

@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% from "_icons.html" import icon %}
+{% from "_ui.html" import empty_state %}
+{% block title %}Notifikasi{% endblock %}
+
+{% block content %}
+<section class="page-head">
+  <div class="page-head-copy">
+    <p class="eyebrow">Kotak masuk</p>
+    <h1>Notifikasi</h1>
+    <p class="page-sub">Perubahan status reservasi Anda akan muncul di sini.</p>
+  </div>
+</section>
+
+{% if rows %}
+  <section class="card card--list" aria-label="Daftar notifikasi">
+    {% for row in rows %}
+      <article class="notification-row">
+        <span class="notification-icon" aria-hidden="true">{{ icon('bell', 19) }}</span>
+        <div>
+          <strong>{{ row['title'] }}</strong>
+          <p>{{ row['message'] }}</p>
+          <time class="muted">{{ row['created_at']|waktu }}</time>
+        </div>
+        {% if row['reservation_id'] %}
+          <a class="text-link" href="{{ url_for('reservation_detail', reservation_id=row['reservation_id']) }}" aria-label="Buka reservasi {{ row['reservation_code'] }}">Buka {{ icon('arrow-right', 14) }}</a>
+        {% endif %}
+      </article>
+    {% endfor %}
+  </section>
+{% else %}
+  {{ empty_state('bell', 'Belum ada notifikasi', 'Saat admin menyetujui atau menolak pengajuan, kabarnya akan tampil di sini.') }}
+{% endif %}
+{% endblock %}

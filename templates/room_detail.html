@@ -1,0 +1,121 @@
+{% extends "base.html" %}
+{% from "_icons.html" import icon %}
+{% from "_ui.html" import status_for, empty_state, status_badge %}
+{% block title %}{{ room['code'] }} · {{ room['name'] }}{% endblock %}
+
+{% block content %}
+<nav class="breadcrumb" aria-label="Breadcrumb">
+  <a href="{{ url_for('rooms') }}">Ruangan</a>
+  <span aria-hidden="true">/</span>
+  <span aria-current="page">{{ room['code'] }}</span>
+</nav>
+
+<section class="page-head page-head--room">
+  <div class="page-head-copy">
+    <p class="eyebrow">{{ room['building'] }}{% if room['floor'] %} · {{ room['floor'] }}{% endif %}</p>
+    <h1>{{ room['name'] }}</h1>
+    <p class="page-sub">{{ room['description'] or room['kind'] }}</p>
+    <div class="head-badges">
+      {{ status_for(state['key']) }}
+      <span class="pill pill--quiet">{{ icon('door', 15) }} {{ room['code'] }}</span>
+      {% if state['next'] %}
+        <span class="pill pill--quiet">{{ icon('clock', 15) }} Dipesan berikutnya {{ state['next']['start_time']|jam }} WITA</span>
+      {% endif %}
+    </div>
+  </div>
+  {% if room['active'] %}
+  <div class="page-actions">
+    <a class="btn btn--primary" href="{{ url_for('reservation_new', ruangan=room['id'], tanggal=selected.isoformat()) }}">
+      {{ icon('plus', 18) }} Ajukan ruangan ini
+    </a>
+  </div>
+  {% endif %}
+</section>
+
+<div class="detail-grid">
+  <section class="card" aria-labelledby="schedule-title">
+    <div class="card-head card-head--wrap">
+      <div>
+        <h2 id="schedule-title">Papan jadwal</h2>
+        <p class="card-sub">{{ selected|tgl }}</p>
+      </div>
+      <div class="date-nav">
+        <a class="icon-link" href="{{ url_for('room_detail', room_id=room['id'], tanggal=prev_day.isoformat()) }}" aria-label="Hari sebelumnya">{{ icon('chevron-left', 20) }}</a>
+        <form method="get" action="{{ url_for('room_detail', room_id=room['id']) }}" class="date-form">
+          <label class="sr-only" for="tanggal">Pilih tanggal jadwal</label>
+          <input id="tanggal" type="date" name="tanggal" value="{{ selected.isoformat() }}">
+          <button class="btn btn--secondary btn--sm" type="submit">Lihat</button>
+        </form>
+        <a class="icon-link" href="{{ url_for('room_detail', room_id=room['id'], tanggal=next_day.isoformat()) }}" aria-label="Hari berikutnya">{{ icon('chevron-right', 20) }}</a>
+      </div>
+    </div>
+
+    {% if now_marker %}
+      <p class="now-note">{{ icon('clock', 15) }} Sekarang {{ now_marker|jam }} WITA · jadwal diperbarui otomatis saat halaman dimuat.</p>
+    {% endif %}
+
+    <div class="schedule-board">
+      {% if board %}
+        {% for item in board %}
+          {% if item.kind == 'now' %}
+            <div class="now-line"><span>Sekarang · {{ item.time|jam }}</span></div>
+          {% else %}
+            {% set booking = item.row %}
+            {% set tone = 'pending' if booking['status'] == 'pending' else ('in_use' if selected == today and booking['start_time'] <= now.strftime('%H:%M') and booking['end_time'] > now.strftime('%H:%M') else ('completed' if selected < today or (selected == today and booking['end_time'] <= now.strftime('%H:%M')) else 'approved')) %}
+            <article class="slot slot--{{ tone }}">
+              <div class="slot-time">
+                <strong>{{ booking['start_time']|jam }}</strong>
+                <span>{{ booking['end_time']|jam }}</span>
+              </div>
+              <div class="slot-card">
+                <div class="slot-top">
+                  <h3>{{ booking['purpose'] }}</h3>
+                  {{ status_for(tone) }}
+                </div>
+                <p class="slot-meta">
+                  <span>{{ icon('user', 14) }} {{ booking['pic_name'] }}</span>
+                  <span>{{ icon('file', 14) }} {{ booking['code'] }}</span>
+                </p>
+              </div>
+            </article>
+          {% endif %}
+        {% endfor %}
+      {% else %}
+        {{ empty_state('sun', 'Belum ada reservasi pada tanggal ini', 'Ruangan ini masih lengang. Ajukan waktu Anda sekarang.', url_for('reservation_new', ruangan=room['id'], tanggal=selected.isoformat()), 'Ajukan ruangan ini') }}
+      {% endif %}
+    </div>
+
+    <p class="legend">
+      <span><span class="legend-dot legend-dot--success"></span> Disetujui</span>
+      <span><span class="legend-dot legend-dot--warning"></span> Menunggu</span>
+      <span><span class="legend-dot legend-dot--info"></span> Sedang digunakan</span>
+      <span><span class="legend-dot legend-dot--neutral"></span> Selesai</span>
+    </p>
+  </section>
+
+  <aside class="detail-side">
+    <section class="card" aria-labelledby="rules-title">
+      <h2 id="rules-title">Aturan pemakaian</h2>
+      <dl class="rule-list">
+        <div><dt>Jam operasional</dt><dd>{{ settings['open_time']|jam }}–{{ settings['close_time']|jam }} WITA</dd></div>
+        <div><dt>Jeda pergantian</dt><dd>{{ settings['buffer_minutes'] }} menit</dd></div>
+        <div><dt>Durasi per pengajuan</dt><dd>{{ settings['min_duration_minutes'] }} menit–{{ settings['max_duration_hours'] }} jam</dd></div>
+        <div><dt>Pengajuan terjauh</dt><dd>{{ settings['max_advance_days'] }} hari ke depan</dd></div>
+        <div><dt>Batas pembatalan</dt><dd>{% if settings['cancel_deadline_hours'] %}H-{{ settings['cancel_deadline_hours'] }} jam{% else %}Sebelum jam mulai{% endif %}</dd></div>
+      </dl>
+      <p class="card-note">{{ icon('info', 15) }} Pengajuan yang menunggu tetap menahan slot sampai admin memutuskan.</p>
+    </section>
+
+    <section class="card" aria-labelledby="roominfo-title">
+      <h2 id="roominfo-title">Informasi ruangan</h2>
+      <dl class="rule-list">
+        <div><dt>Kode</dt><dd>{{ room['code'] }}</dd></div>
+        <div><dt>Gedung</dt><dd>{{ room['building'] }}</dd></div>
+        <div><dt>Lantai</dt><dd>{{ room['floor'] or '—' }}</dd></div>
+        <div><dt>Jenis</dt><dd>{{ room['kind'] }}</dd></div>
+        <div><dt>Status</dt><dd>{{ status_for(state['key']) }}</dd></div>
+      </dl>
+    </section>
+  </aside>
+</div>
+{% endblock %}

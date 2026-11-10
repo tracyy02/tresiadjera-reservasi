@@ -1,0 +1,157 @@
+{% extends "base.html" %}
+{% from "_icons.html" import icon %}
+{% from "_ui.html" import status_for, empty_state %}
+{% block title %}Admin{% endblock %}
+
+{% block content %}
+<section class="page-head">
+  <div class="page-head-copy">
+    <p class="eyebrow">{{ today|tgl }} · WITA</p>
+    <h1>Pusat kendali reservasi</h1>
+    <p class="page-sub">Tinjau pengajuan, jaga agar tidak ada slot yang disetujui dua kali, dan pantau pemakaian ruangan.</p>
+  </div>
+  <div class="page-actions">
+    <a class="btn btn--secondary" href="{{ url_for('admin_settings') }}">{{ icon('settings', 17) }} Pengaturan</a>
+    <a class="btn btn--primary" href="{{ url_for('admin_reservations') }}">{{ icon('list', 18) }} Semua reservasi</a>
+  </div>
+</section>
+
+<section class="stat-grid" aria-label="Ringkasan kampus">
+  <article class="stat-card">
+    <span class="stat-icon stat-icon--warning" aria-hidden="true">{{ icon('clock', 20) }}</span>
+    <div><p class="stat-label">Menunggu tinjauan</p><p class="stat-value">{{ stats['pending'] }}</p><p class="stat-hint">Perlu keputusan admin</p></div>
+  </article>
+  <article class="stat-card">
+    <span class="stat-icon stat-icon--success" aria-hidden="true">{{ icon('check-circle', 20) }}</span>
+    <div><p class="stat-label">Disetujui hari ini</p><p class="stat-value">{{ stats['approved_today'] }}</p><p class="stat-hint">Kegiatan terjadwal hari ini</p></div>
+  </article>
+  <article class="stat-card">
+    <span class="stat-icon stat-icon--brand" aria-hidden="true">{{ icon('calendar', 20) }}</span>
+    <div><p class="stat-label">Tujuh hari ke depan</p><p class="stat-value">{{ stats['upcoming_week'] }}</p><p class="stat-hint">Reservasi disetujui</p></div>
+  </article>
+  <article class="stat-card">
+    <span class="stat-icon stat-icon--neutral" aria-hidden="true">{{ icon('door', 20) }}</span>
+    <div><p class="stat-label">Ruangan aktif</p><p class="stat-value">{{ stats['active_rooms'] }}</p><p class="stat-hint"><a href="{{ url_for('admin_rooms') }}">Kelola ruangan</a></p></div>
+  </article>
+</section>
+
+<section class="card" aria-labelledby="queue-title">
+  <div class="card-head">
+    <div>
+      <h2 id="queue-title">Antrean persetujuan</h2>
+      <p class="card-sub">Diurutkan dari tanggal kegiatan terdekat. Periksa konflik sebelum menyetujui.</p>
+    </div>
+    <a class="text-link" href="{{ url_for('admin_reservations', status='pending') }}">Lihat semua {{ icon('arrow-right', 15) }}</a>
+  </div>
+
+  {% if pending %}
+    <div class="queue-list">
+      {% for item in pending %}
+        {% set row = item.row %}
+        <article class="queue-item">
+          <div class="queue-main">
+            <div class="queue-top">
+              <span class="queue-code">{{ row['code'] }}</span>
+              <span class="badge badge--warning">{{ icon('clock', 14) }} Menunggu</span>
+              {% if item.approved_conflicts %}
+                <span class="badge badge--danger">{{ icon('alert', 14) }} Bentrok jadwal</span>
+              {% elif item.pending_conflicts %}
+                <span class="badge badge--warning">{{ icon('alert', 14) }} Bersaing dengan pengajuan lain</span>
+              {% endif %}
+            </div>
+            <h3>{{ row['purpose'] }}</h3>
+            <p class="queue-meta">
+              <span>{{ icon('user', 14) }} {{ row['pic_name'] }}</span>
+              <span>{{ icon('door', 14) }} {{ row['room_code'] }} · {{ row['room_name'] }}</span>
+              <span>{{ icon('calendar', 14) }} {{ row['date']|tgl_singkat }}</span>
+              <span>{{ icon('clock', 14) }} {{ row['start_time']|jam }}–{{ row['end_time']|jam }} WITA</span>
+            </p>
+            {% if item.approved_conflicts %}
+              <div class="queue-conflict">
+                {{ icon('alert', 16) }}
+                <p>Bertabrakan dengan reservasi disetujui:
+                  {% for conflict in item.approved_conflicts %}
+                    <a href="{{ url_for('reservation_detail', reservation_id=conflict['id']) }}">{{ conflict['code'] }}</a>{% if not loop.last %}, {% endif %}
+                  {% endfor %}
+                </p>
+              </div>
+            {% endif %}
+            {% if item.pending_conflicts %}
+              <div class="queue-conflict queue-conflict--soft">
+                {{ icon('info', 16) }}
+                <p>Pengajuan lain pada slot sama:
+                  {% for conflict in item.pending_conflicts %}
+                    <a href="{{ url_for('reservation_detail', reservation_id=conflict['id']) }}">{{ conflict['code'] }}</a>{% if not loop.last %}, {% endif %}
+                  {% endfor %}. Selesaikan salah satu lebih dahulu.
+                </p>
+              </div>
+            {% endif %}
+          </div>
+          <div class="queue-actions">
+            <a class="btn btn--primary btn--sm" href="{{ url_for('reservation_detail', reservation_id=row['id']) }}">Tinjau</a>
+            <span class="queue-age">Diajukan {{ row['created_at']|waktu }}</span>
+          </div>
+        </article>
+      {% endfor %}
+    </div>
+  {% else %}
+    {{ empty_state('check-circle', 'Semua pengajuan sudah diproses', 'Tidak ada antrean saat ini. Antrean baru akan muncul di sini.', url_for('admin_reservations'), 'Lihat riwayat reservasi') }}
+  {% endif %}
+</section>
+
+<div class="dashboard-grid">
+  <section class="card" aria-labelledby="today-title">
+    <div class="card-head">
+      <div>
+        <h2 id="today-title">Jadwal hari ini</h2>
+        <p class="card-sub">Kegiatan disetujui dan yang masih menunggu.</p>
+      </div>
+      <a class="text-link" href="{{ url_for('calendar_view') }}">Kalender {{ icon('arrow-right', 15) }}</a>
+    </div>
+    {% if today_agenda %}
+      <div class="agenda-list">
+        {% for row in today_agenda %}
+          <div class="agenda-item">
+            <span class="agenda-time">{{ row['start_time']|jam }}<small>{{ row['end_time']|jam }}</small></span>
+            <span class="agenda-bar" aria-hidden="true"></span>
+            <span class="agenda-main">
+              <strong>{{ row['purpose'] }}</strong>
+              <span>{{ row['pic_name'] }} · {{ row['room_code'] }} {{ row['room_name'] }}</span>
+            </span>
+            {{ status_for(row|status_state) }}
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      {{ empty_state('sun', 'Tidak ada kegiatan hari ini', 'Kalender kampus kosong. Pengajuan baru akan tampil di sini.') }}
+    {% endif %}
+  </section>
+
+  <section class="card" aria-labelledby="recent-title">
+    <div class="card-head">
+      <div>
+        <h2 id="recent-title">Aktivitas terbaru</h2>
+        <p class="card-sub">Keputusan dan pengajuan 14 hari terakhir.</p>
+      </div>
+    </div>
+    {% if recent %}
+      <ul class="activity-list">
+        {% for row in recent %}
+          <li>
+            <a href="{{ url_for('reservation_detail', reservation_id=row['id']) }}">
+              <span class="activity-main">
+                <strong>{{ row['pic_name'] }} · {{ row['room_code'] or row['custom_room'] }}</strong>
+                <small>{{ row['date']|tgl_singkat }} · {{ row['start_time']|jam }}–{{ row['end_time']|jam }}</small>
+                <small class="activity-code">{{ row['code'] }}</small>
+              </span>
+              {{ status_for(row|status_state) }}
+            </a>
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p class="muted">Belum ada aktivitas.</p>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}

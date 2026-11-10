@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+{% from "_icons.html" import icon %}
+{% from "_ui.html" import status_for, empty_state %}
+{% block title %}Kalender{% endblock %}
+
+{% block content %}
+<section class="page-head">
+  <div class="page-head-copy">
+    <p class="eyebrow">Ketersediaan kampus</p>
+    <h1>Kalender reservasi</h1>
+    <p class="page-sub">Lihat sebaran kegiatan per hari, lalu buka tanggal untuk melihat detail ruangan.</p>
+  </div>
+  <div class="page-actions">
+    <a class="btn btn--primary" href="{{ url_for('reservation_new') }}">{{ icon('plus', 18) }} Ajukan reservasi</a>
+  </div>
+</section>
+
+<form class="filter-bar filter-bar--compact" method="get" action="{{ url_for('calendar_view') }}">
+  <input type="hidden" name="bulan" value="{{ anchor.strftime('%Y-%m') }}">
+  <input type="hidden" name="tanggal" value="{{ selected.isoformat() }}">
+  <div class="field field--inline">
+    <label for="ruangan">Filter ruangan</label>
+    <select id="ruangan" name="ruangan">
+      <option value="">Semua ruangan</option>
+      {% for room in rooms %}
+        <option value="{{ room['id'] }}" {% if room_id == room['id'] %}selected{% endif %}>{{ room['code'] }} · {{ room['name'] }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="filter-actions">
+    <button class="btn btn--secondary" type="submit">{{ icon('filter', 17) }} Terapkan</button>
+    {% if room_id %}<a class="text-link" href="{{ url_for('calendar_view', bulan=anchor.strftime('%Y-%m'), tanggal=selected.isoformat()) }}">Semua ruangan</a>{% endif %}
+  </div>
+</form>
+
+<div class="calendar-layout">
+  <section class="card card--calendar" aria-labelledby="month-title">
+    <div class="calendar-head">
+      <a class="icon-link" href="{{ url_for('calendar_view', bulan=previous_month.strftime('%Y-%m'), tanggal=previous_month.isoformat(), ruangan=room_id) }}" aria-label="Bulan sebelumnya">{{ icon('chevron-left', 20) }}</a>
+      <div class="calendar-title">
+        <h2 id="month-title">{{ month_label }}</h2>
+        <a href="{{ url_for('calendar_view', bulan=today.strftime('%Y-%m'), tanggal=today.isoformat(), ruangan=room_id) }}">Kembali ke hari ini</a>
+      </div>
+      <a class="icon-link" href="{{ url_for('calendar_view', bulan=next_month.strftime('%Y-%m'), tanggal=next_month.isoformat(), ruangan=room_id) }}" aria-label="Bulan berikutnya">{{ icon('chevron-right', 20) }}</a>
+    </div>
+
+    <table class="calendar-table">
+      <caption class="sr-only">Kalender ketersediaan {{ month_label }}</caption>
+      <thead>
+        <tr>
+          {% for day_name in weekdays %}<th scope="col"><span aria-hidden="true">{{ day_name }}</span><span class="sr-only">{{ day_name }}</span></th>{% endfor %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for week in weeks %}
+          <tr>
+            {% for day in week %}
+              {% set info = summary.get(day.isoformat(), {}) %}
+              {% set total = info.get('total', 0) %}
+              <td class="{% if day.month != anchor.month %}is-outside{% endif %} {% if day == today %}is-today{% endif %} {% if day == selected %}is-selected{% endif %}">
+                <a href="{{ url_for('calendar_view', bulan=anchor.strftime('%Y-%m'), tanggal=day.isoformat(), ruangan=room_id) }}"
+                   aria-label="{{ day|tgl }}{% if total %}, {{ total }} reservasi{% else %}, belum ada reservasi{% endif %}"
+                   {% if day == selected %}aria-current="date"{% endif %}>
+                  <span class="cal-day">{{ day.day }}</span>
+                  {% if total %}
+                    <span class="cal-count" aria-hidden="true">{{ total }}</span>
+                    <span class="cal-dots" aria-hidden="true">
+                      {% if info.get('approved') %}<span class="dot dot--success"></span>{% endif %}
+                      {% if info.get('pending') %}<span class="dot dot--warning"></span>{% endif %}
+                    </span>
+                  {% endif %}
+                </a>
+              </td>
+            {% endfor %}
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <p class="legend">
+      <span><span class="legend-dot legend-dot--success"></span> Disetujui</span>
+      <span><span class="legend-dot legend-dot--warning"></span> Menunggu</span>
+      <span><span class="legend-dot legend-dot--brand"></span> Tanggal dipilih</span>
+    </p>
+  </section>
+
+  <section class="card" aria-labelledby="day-title">
+    <div class="card-head">
+      <div>
+        <h2 id="day-title">{{ selected|tgl }}</h2>
+        <p class="card-sub">{{ agenda|length }} kegiatan{% if room_id %} pada ruangan terpilih{% endif %}.</p>
+      </div>
+      <a class="text-link" href="{{ url_for('reservation_new', tanggal=selected.isoformat()) }}">Ajukan {{ icon('arrow-right', 15) }}</a>
+    </div>
+    {% if agenda %}
+      <div class="agenda-list">
+        {% for row in agenda %}
+          <div class="agenda-item">
+            <span class="agenda-time">{{ row['start_time']|jam }}<small>{{ row['end_time']|jam }}</small></span>
+            <span class="agenda-bar" aria-hidden="true"></span>
+            <span class="agenda-main">
+              <strong>{{ row['purpose'] }}</strong>
+              <span>{{ row['pic_name'] }} · {{ row['room_code'] }} {{ row['room_name'] }}</span>
+            </span>
+            {{ status_for(row|status_state) }}
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      {{ empty_state('sun', 'Belum ada kegiatan', 'Tanggal ini masih kosong. Ajukan ruangan untuk kegiatan Anda.', url_for('reservation_new', tanggal=selected.isoformat()), 'Ajukan pada tanggal ini') }}
+    {% endif %}
+  </section>
+</div>
+{% endblock %}

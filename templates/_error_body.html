@@ -1,0 +1,12 @@
+<section class="error-page" aria-labelledby="error-title">
+  <p class="error-code" aria-hidden="true">{{ code }}</p>
+  <h1 id="error-title">{{ title }}</h1>
+  <p>{{ message }}</p>
+  <div class="error-actions">
+    {% if g.user %}
+      <a class="btn btn--primary" href="{{ url_for('dashboard') }}">Kembali ke beranda</a>
+    {% else %}
+      <a class="btn btn--primary" href="{{ url_for('login') }}">Kembali ke halaman masuk</a>
+    {% endif %}
+  </div>
+</section>

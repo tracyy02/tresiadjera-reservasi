@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% from "_icons.html" import icon %}
+{% block title %}{{ 'Ubah ruangan' if room else 'Tambah ruangan' }}{% endblock %}
+
+{% block content %}
+<nav class="breadcrumb" aria-label="Breadcrumb">
+  <a href="{{ url_for('admin_rooms') }}">Ruangan</a>
+  <span aria-hidden="true">/</span>
+  <span aria-current="page">{{ 'Ubah' if room else 'Tambah' }}</span>
+</nav>
+
+<section class="page-head">
+  <div class="page-head-copy">
+    <p class="eyebrow">Administrasi</p>
+    <h1>{{ 'Ubah ruangan' if room else 'Tambah ruangan' }}</h1>
+    <p class="page-sub">Kode dan nama ruangan tampil pada kalender dan formulir reservasi.</p>
+  </div>
+</section>
+
+{% if errors %}
+  <div class="alert alert--error" role="alert">
+    {{ icon('alert', 20) }}
+    <p>Periksa kembali data ruangan sebelum menyimpan.</p>
+  </div>
+{% endif %}
+
+<form method="post" class="card form-card" novalidate>
+  <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+  <div class="form-grid">
+    <div class="field" id="field-code">
+      <label for="code">Kode ruangan <span class="req" aria-hidden="true">*</span></label>
+      <input id="code" name="code" type="text" value="{{ values['code'] }}" placeholder="contoh: A.1.4" required
+             aria-describedby="code-hint{% if errors.get('code') %} code-error{% endif %}"
+             {% if errors.get('code') %}aria-invalid="true"{% endif %}>
+      <p class="hint" id="code-hint">Kode unik, mengikuti penomoran kampus.</p>
+      {% if errors.get('code') %}<p class="error-text" id="code-error">{{ errors['code'] }}</p>{% endif %}
+    </div>
+    <div class="field" id="field-name">
+      <label for="name">Nama ruangan <span class="req" aria-hidden="true">*</span></label>
+      <input id="name" name="name" type="text" value="{{ values['name'] }}" placeholder="contoh: Studio Pola" required
+             aria-describedby="{% if errors.get('name') %}name-error{% endif %}"
+             {% if errors.get('name') %}aria-invalid="true"{% endif %}>
+      {% if errors.get('name') %}<p class="error-text" id="name-error">{{ errors['name'] }}</p>{% endif %}
+    </div>
+    <div class="field" id="field-building">
+      <label for="building">Gedung <span class="req" aria-hidden="true">*</span></label>
+      <input id="building" name="building" type="text" value="{{ values['building'] }}" placeholder="contoh: Gedung A" required
+             {% if errors.get('building') %}aria-invalid="true" aria-describedby="building-error"{% endif %}>
+      {% if errors.get('building') %}<p class="error-text" id="building-error">{{ errors['building'] }}</p>{% endif %}
+    </div>
+    <div class="field">
+      <label for="floor">Lantai</label>
+      <input id="floor" name="floor" type="text" value="{{ values['floor'] }}" placeholder="contoh: Lantai 2">
+    </div>
+    <div class="field" id="field-kind">
+      <label for="kind">Jenis ruangan <span class="req" aria-hidden="true">*</span></label>
+      <input id="kind" name="kind" type="text" value="{{ values['kind'] }}" placeholder="contoh: Ruang kuliah" required
+             {% if errors.get('kind') %}aria-invalid="true" aria-describedby="kind-error"{% endif %}>
+      {% if errors.get('kind') %}<p class="error-text" id="kind-error">{{ errors['kind'] }}</p>{% endif %}
+    </div>
+  </div>
+  <div class="field" id="field-description">
+    <label for="description">Deskripsi</label>
+    <textarea id="description" name="description" rows="3" maxlength="300"
+              placeholder="Keterangan singkat tentang ruangan.">{{ values['description'] }}</textarea>
+    <p class="hint">Opsional, maksimal 300 karakter.</p>
+  </div>
+  <div class="form-actions">
+    <a class="btn btn--secondary" href="{{ url_for('admin_rooms') }}">Batal</a>
+    <button class="btn btn--primary" type="submit">{{ icon('check', 18) }} {{ 'Simpan perubahan' if room else 'Tambah ruangan' }}</button>
+  </div>
+</form>
+{% endblock %}

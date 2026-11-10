@@ -1,0 +1,119 @@
+{% from "_icons.html" import icon, logo %}
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#044c71">
+  <title>{% block title %}IDB Room{% endblock %} · Kampus IDB Bali</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;500;600;700&family=Source+Serif+4:opsz,wght@8..60,600;8..60,700&display=swap" rel="stylesheet">
+  <link rel="icon" href="{{ url_for('static', filename='img/favicon.png', v=2) }}" type="image/png">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
+  {% block head %}{% endblock %}
+</head>
+<body class="{% block body_class %}{% endblock %}">
+<a class="skip-link" href="#main">Lewati ke konten utama</a>
+
+{% if g.user %}
+<header class="app-header">
+  <div class="shell header-inner">
+    <a class="brand-link" href="{{ url_for('dashboard') }}" aria-label="IDB Room, ke beranda">{{ logo(38, true) }}</a>
+
+    <nav class="primary-nav" aria-label="Navigasi utama">
+      {% if g.user['role'] == 'admin' %}
+        <a href="{{ url_for('admin_dashboard') }}" {% if active_endpoint == 'admin_dashboard' %}aria-current="page"{% endif %}>Beranda</a>
+        <a href="{{ url_for('admin_reservations') }}" {% if active_endpoint in ('admin_reservations', 'reservation_detail') %}aria-current="page"{% endif %}>Reservasi</a>
+        <a href="{{ url_for('admin_rooms') }}" {% if active_endpoint in ('admin_rooms', 'admin_room_new', 'admin_room_edit') %}aria-current="page"{% endif %}>Ruangan</a>
+        <a href="{{ url_for('admin_users') }}" {% if active_endpoint == 'admin_users' %}aria-current="page"{% endif %}>Pengguna</a>
+        <a href="{{ url_for('admin_settings') }}" {% if active_endpoint == 'admin_settings' %}aria-current="page"{% endif %}>Pengaturan</a>
+      {% else %}
+        <a href="{{ url_for('dashboard') }}" {% if active_endpoint == 'dashboard' %}aria-current="page"{% endif %}>Beranda</a>
+        <a href="{{ url_for('rooms') }}" {% if active_endpoint in ('rooms', 'room_detail') %}aria-current="page"{% endif %}>Ruangan</a>
+        <a href="{{ url_for('calendar_view') }}" {% if active_endpoint == 'calendar_view' %}aria-current="page"{% endif %}>Kalender</a>
+        <a href="{{ url_for('reservations') }}" {% if active_endpoint in ('reservations', 'reservation_detail', 'reservation_new') %}aria-current="page"{% endif %}>Reservasi</a>
+      {% endif %}
+    </nav>
+
+    <div class="header-actions">
+      <a class="icon-link" href="{{ url_for('notifications') }}" aria-label="Notifikasi{% if unread_count %}, {{ unread_count }} belum dibaca{% endif %}">
+        {{ icon('bell', 21) }}
+        {% if unread_count %}<span class="badge-count" aria-hidden="true">{{ unread_count if unread_count < 10 else '9+' }}</span>{% endif %}
+      </a>
+      <div class="user-chip">
+        <span class="avatar" aria-hidden="true">{{ g.user['name']|inisial }}</span>
+        <span class="user-meta">
+          <strong>{{ g.user['name'] }}</strong>
+          <small>{% if g.user['role'] == 'admin' %}Administrator{% elif g.user['borrower_type'] == 'dosen' %}Dosen{% else %}Mahasiswa{% endif %}</small>
+        </span>
+      </div>
+      <form method="post" action="{{ url_for('logout') }}">
+        <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+        <button class="icon-link" type="submit" aria-label="Keluar dari akun">{{ icon('logout', 20) }}</button>
+      </form>
+    </div>
+  </div>
+</header>
+
+<div class="page">
+  <main id="main" class="shell" tabindex="-1">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <div class="flash-stack">
+          {% for category, message in messages %}
+            <div class="alert alert--{{ category }}" role="{{ 'alert' if category == 'error' else 'status' }}">
+              {{ icon('alert' if category == 'error' else ('check-circle' if category == 'success' else 'info'), 20) }}
+              <p>{{ message }}</p>
+              <button class="alert-close" type="button" data-dismiss-alert aria-label="Tutup pesan">{{ icon('x', 18) }}</button>
+            </div>
+          {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+    {% block content %}{% endblock %}
+  </main>
+</div>
+
+{% if g.user['role'] == 'org' %}
+<a class="fab" href="{{ url_for('reservation_new') }}">{{ icon('plus', 20) }} <span>Ajukan</span></a>
+{% endif %}
+
+<dialog id="confirm-dialog" class="dialog" aria-labelledby="confirm-title">
+  <div class="dialog-head">
+    <h2 id="confirm-title">Konfirmasi tindakan</h2>
+    <button class="icon-link" type="button" data-dialog-close aria-label="Tutup dialog">{{ icon('x', 20) }}</button>
+  </div>
+  <div class="dialog-body">
+    <p data-confirm-message></p>
+  </div>
+  <div class="dialog-foot">
+    <button class="btn btn--secondary" type="button" data-dialog-close>Batal</button>
+    <button class="btn btn--danger" type="button" data-confirm-accept>Ya, lanjutkan</button>
+  </div>
+</dialog>
+
+<nav class="bottom-nav" aria-label="Navigasi bawah">
+  {% if g.user['role'] == 'admin' %}
+    <a href="{{ url_for('admin_dashboard') }}" {% if active_endpoint == 'admin_dashboard' %}aria-current="page"{% endif %}>{{ icon('home', 21) }}<span>Beranda</span></a>
+    <a href="{{ url_for('admin_reservations') }}" {% if active_endpoint in ('admin_reservations', 'reservation_detail') %}aria-current="page"{% endif %}>{{ icon('list', 21) }}<span>Reservasi</span></a>
+    <a href="{{ url_for('admin_rooms') }}" {% if active_endpoint in ('admin_rooms', 'admin_room_new', 'admin_room_edit') %}aria-current="page"{% endif %}>{{ icon('door', 21) }}<span>Ruangan</span></a>
+    <a href="{{ url_for('admin_users') }}" {% if active_endpoint == 'admin_users' %}aria-current="page"{% endif %}>{{ icon('users', 21) }}<span>Pengguna</span></a>
+    <a href="{{ url_for('admin_settings') }}" {% if active_endpoint == 'admin_settings' %}aria-current="page"{% endif %}>{{ icon('settings', 21) }}<span>Atur</span></a>
+  {% else %}
+    <a href="{{ url_for('dashboard') }}" {% if active_endpoint == 'dashboard' %}aria-current="page"{% endif %}>{{ icon('home', 21) }}<span>Beranda</span></a>
+    <a href="{{ url_for('rooms') }}" {% if active_endpoint in ('rooms', 'room_detail') %}aria-current="page"{% endif %}>{{ icon('door', 21) }}<span>Ruangan</span></a>
+    <a href="{{ url_for('calendar_view') }}" {% if active_endpoint == 'calendar_view' %}aria-current="page"{% endif %}>{{ icon('calendar', 21) }}<span>Kalender</span></a>
+    <a href="{{ url_for('reservations') }}" {% if active_endpoint in ('reservations', 'reservation_detail', 'reservation_new') %}aria-current="page"{% endif %}>{{ icon('list', 21) }}<span>Reservasi</span></a>
+  {% endif %}
+</nav>
+{% else %}
+<main id="main" tabindex="-1">
+  {% block public_content %}{% endblock %}
+</main>
+{% endif %}
+
+<script src="{{ url_for('static', filename='js/app.js') }}" defer></script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

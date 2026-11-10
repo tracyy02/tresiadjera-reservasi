@@ -1,0 +1,89 @@
+{% from "_icons.html" import icon %}
+
+{% macro status_badge(label, tone, icon_name=None) -%}
+<span class="badge badge--{{ tone }}">
+  {% if icon_name %}{{ icon(icon_name, 14) }}{% else %}<span class="badge-dot" aria-hidden="true"></span>{% endif %}
+  {{ label }}
+</span>
+{%- endmacro %}
+
+{% macro status_for(state) -%}
+  {% set labels = {
+    'pending': 'Menunggu persetujuan',
+    'approved': 'Disetujui',
+    'in_use': 'Sedang digunakan',
+    'completed': 'Selesai',
+    'rejected': 'Ditolak',
+    'cancelled': 'Dibatalkan',
+    'available': 'Tersedia',
+    'inactive': 'Tidak tersedia'
+  } %}
+  {% set tones = {
+    'pending': 'warning', 'approved': 'success', 'in_use': 'info',
+    'completed': 'neutral', 'rejected': 'danger', 'cancelled': 'neutral',
+    'available': 'success', 'inactive': 'neutral'
+  } %}
+  {% set icons = {
+    'pending': 'clock', 'approved': 'check-circle', 'in_use': 'door',
+    'completed': 'check', 'rejected': 'x-circle', 'cancelled': 'ban',
+    'available': 'check-circle', 'inactive': 'ban'
+  } %}
+  {{ status_badge(labels.get(state, state), tones.get(state, 'neutral'), icons.get(state, 'info')) }}
+{%- endmacro %}
+
+{% macro empty_state(icon_name, title, text, action_url=None, action_label=None) -%}
+<div class="empty-state">
+  <span class="empty-icon" aria-hidden="true">{{ icon(icon_name, 26) }}</span>
+  <h3>{{ title }}</h3>
+  <p>{{ text }}</p>
+  {% if action_url and action_label %}
+    <a class="btn btn--secondary btn--sm" href="{{ action_url }}">{{ action_label }}</a>
+  {% endif %}
+</div>
+{%- endmacro %}
+
+{% macro room_card(room, state) -%}
+<article class="room-card room-card--{{ room['building']|gedung }}">
+  <a class="room-card-link" href="{{ url_for('room_detail', room_id=room['id']) }}">
+    <div class="room-card-top">
+      <span class="room-code">{{ room['code'] }}</span>
+      {{ status_badge(state['label'], state['tone'], 'door' if state['key'] == 'in_use' else ('check-circle' if state['key'] == 'available' else 'ban')) }}
+    </div>
+    <h3>{{ room['name'] }}</h3>
+    <p class="room-meta">
+      {{ icon('map-pin', 15) }} {{ room['building'] }}{% if room['floor'] %} · {{ room['floor'] }}{% endif %}
+    </p>
+    <div class="room-card-foot">
+      <span class="room-kind">{{ room['kind'] }}</span>
+      {% if state['next'] %}
+        <span class="room-next">Dipesan {{ state['next']['start_time']|jam }}</span>
+      {% else %}
+        <span class="room-next">Lihat jadwal {{ icon('arrow-right', 14) }}</span>
+      {% endif %}
+    </div>
+  </a>
+</article>
+{%- endmacro %}
+
+{% macro reservation_row(row, state, show_org=False, admin=False) -%}
+<article class="booking-row">
+  <div class="booking-date" aria-hidden="true">
+    <span class="booking-day">{{ row['date'][8:10] }}</span>
+    <span class="booking-month">{{ row['date']|bulan }}</span>
+  </div>
+  <div class="booking-main">
+    <div class="booking-title-line">
+      <h3><a href="{{ url_for('reservation_detail', reservation_id=row['id']) }}">{{ row['purpose'] }}</a></h3>
+      {{ status_for(state) }}
+    </div>
+    <p class="booking-meta">
+      <span>{{ icon('calendar', 14) }} {{ row['date']|tgl_singkat }}</span>
+      <span>{{ icon('clock', 14) }} {{ row['start_time']|jam }}–{{ row['end_time']|jam }} WITA</span>
+    </p>
+    <p class="booking-room">{{ icon('door', 14) }}
+      {% if row['room_id'] %}{{ row['room_code'] }} · {{ row['room_name'] }}{% else %}{{ row['custom_room'] or 'Ruangan lain' }}{% endif %}
+      {% if admin %}<span class="booking-code">{{ row['code'] }}</span>{% endif %}
+    </p>
+  </div>
+</article>
+{%- endmacro %}

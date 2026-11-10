@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% from "_icons.html" import icon %}
+{% block title %}Pengaturan{% endblock %}
+
+{% block content %}
+<section class="page-head">
+  <div class="page-head-copy">
+    <p class="eyebrow">Administrasi</p>
+    <h1>Pengaturan reservasi</h1>
+    <p class="page-sub">Aturan ini berlaku untuk semua pengajuan baru dan pemeriksaan bentrok berikutnya.</p>
+  </div>
+</section>
+
+<form method="post" class="settings-form" novalidate>
+  <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+
+  <section class="card" aria-labelledby="ops-title">
+    <div class="section-head">
+      <span class="section-number" aria-hidden="true">01</span>
+      <div>
+        <h2 id="ops-title">Jam operasional</h2>
+        <p class="card-sub">Rentang waktu yang boleh diajukan untuk seluruh ruangan.</p>
+      </div>
+    </div>
+    <div class="form-grid">
+      <div class="field">
+        <label for="open_time">Jam buka</label>
+        <input id="open_time" name="open_time" type="time" value="{{ settings['open_time'] }}" required>
+      </div>
+      <div class="field">
+        <label for="close_time">Jam tutup</label>
+        <input id="close_time" name="close_time" type="time" value="{{ settings['close_time'] }}" required>
+      </div>
+    </div>
+  </section>
+
+  <section class="card" aria-labelledby="conflict-title">
+    <div class="section-head">
+      <span class="section-number" aria-hidden="true">02</span>
+      <div>
+        <h2 id="conflict-title">Pencegahan bentrok</h2>
+        <p class="card-sub">Jeda persiapan ikut dihitung pada kedua sisi rentang waktu.</p>
+      </div>
+    </div>
+    <div class="form-grid">
+      <div class="field">
+        <label for="buffer_minutes">Jeda pergantian (menit)</label>
+        <input id="buffer_minutes" name="buffer_minutes" type="number" min="0" max="120" step="5" value="{{ settings['buffer_minutes'] }}" required>
+        <p class="hint">Contoh: 15 menit berarti reservasi 09.00–11.00 menahan slot hingga 11.15.</p>
+      </div>
+      <div class="field">
+        <label for="max_advance_days">Batas pengajuan (hari)</label>
+        <input id="max_advance_days" name="max_advance_days" type="number" min="1" max="365" value="{{ settings['max_advance_days'] }}" required>
+        <p class="hint">Berapa hari ke depan pengajuan masih diterima.</p>
+      </div>
+      <div class="field">
+        <label for="cancel_deadline_hours">Batas pembatalan (jam sebelum mulai)</label>
+        <input id="cancel_deadline_hours" name="cancel_deadline_hours" type="number" min="0" max="168" value="{{ settings['cancel_deadline_hours'] }}" required>
+        <p class="hint">0 berarti pembatalan masih bisa dilakukan sebelum jam mulai.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="card" aria-labelledby="duration-title">
+    <div class="section-head">
+      <span class="section-number" aria-hidden="true">03</span>
+      <div>
+        <h2 id="duration-title">Durasi pemakaian</h2>
+        <p class="card-sub">Batas bawah dan atas untuk satu pengajuan.</p>
+      </div>
+    </div>
+    <div class="form-grid">
+      <div class="field">
+        <label for="min_duration_minutes">Durasi minimal (menit)</label>
+        <input id="min_duration_minutes" name="min_duration_minutes" type="number" min="15" max="240" step="15" value="{{ settings['min_duration_minutes'] }}" required>
+      </div>
+      <div class="field">
+        <label for="max_duration_hours">Durasi maksimal (jam)</label>
+        <input id="max_duration_hours" name="max_duration_hours" type="number" min="1" max="12" value="{{ settings['max_duration_hours'] }}" required>
+      </div>
+    </div>
+  </section>
+
+  <div class="form-actions">
+    <a class="btn btn--secondary" href="{{ url_for('admin_dashboard') }}">Batal</a>
+    <button class="btn btn--primary" type="submit">{{ icon('check', 18) }} Simpan pengaturan</button>
+  </div>
+</form>
+{% endblock %}

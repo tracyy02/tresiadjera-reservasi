@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+{% from "_icons.html" import icon %}
+{% from "_ui.html" import status_for, empty_state %}
+{% block title %}Semua reservasi{% endblock %}
+
+{% block content %}
+<section class="page-head">
+  <div class="page-head-copy">
+    <p class="eyebrow">Administrasi</p>
+    <h1>Semua reservasi</h1>
+    <p class="page-sub">Cari, filter, dan tinjau pengajuan dari seluruh mahasiswa dan dosen.</p>
+  </div>
+  <div class="page-actions">
+    <a class="btn btn--secondary" href="{{ url_for('admin_dashboard') }}">{{ icon('arrow-left', 18) }} Pusat kendali</a>
+  </div>
+</section>
+
+<nav class="status-tabs" aria-label="Filter status reservasi">
+  {% set tabs = [
+    ('semua', 'Semua'), ('pending', 'Menunggu'), ('approved', 'Disetujui'),
+    ('completed', 'Selesai'), ('rejected', 'Ditolak'), ('cancelled', 'Dibatalkan')
+  ] %}
+  {% for key, label in tabs %}
+    <a href="{{ url_for('admin_reservations', status=key, ruangan=room_id, dari=date_from, sampai=date_to, q=query_text) }}"
+       {% if status == key %}aria-current="page"{% endif %}>
+      {{ label }} <span class="tab-count">{{ counts[key] }}</span>
+    </a>
+  {% endfor %}
+</nav>
+
+<form class="filter-bar filter-bar--admin" method="get" action="{{ url_for('admin_reservations') }}">
+  <input type="hidden" name="status" value="{{ status }}">
+  <div class="field field--inline">
+    <label for="q">Cari</label>
+    <input id="q" name="q" type="search" value="{{ query_text }}" placeholder="Kode, kegiatan, nama peminjam">
+  </div>
+  <div class="field field--inline">
+    <label for="ruangan">Ruangan</label>
+    <select id="ruangan" name="ruangan">
+      <option value="">Semua ruangan</option>
+      {% for room in rooms %}
+        <option value="{{ room['id'] }}" {% if room_id == room['id'] %}selected{% endif %}>{{ room['code'] }} · {{ room['name'] }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="field field--inline">
+    <label for="dari">Dari tanggal</label>
+    <input id="dari" name="dari" type="date" value="{{ date_from }}">
+  </div>
+  <div class="field field--inline">
+    <label for="sampai">Sampai tanggal</label>
+    <input id="sampai" name="sampai" type="date" value="{{ date_to }}">
+  </div>
+  <div class="filter-actions">
+    <button class="btn btn--secondary" type="submit">{{ icon('filter', 17) }} Terapkan</button>
+    <a class="text-link" href="{{ url_for('admin_reservations') }}">Reset</a>
+  </div>
+</form>
+
+{% if items %}
+  <div class="table-wrap">
+    <table class="data-table">
+      <caption class="sr-only">Daftar reservasi seluruh pengguna</caption>
+      <thead>
+        <tr>
+          <th scope="col">Kode</th>
+          <th scope="col">Kegiatan / peminjam</th>
+          <th scope="col">Ruangan</th>
+          <th scope="col">Tanggal</th>
+          <th scope="col">Waktu</th>
+          <th scope="col">Status</th>
+          <th scope="col"><span class="sr-only">Aksi</span></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in items %}
+          {% set row = item.row %}
+          <tr>
+            <td data-label="Kode" class="nowrap"><span class="mono">{{ row['code'] }}</span></td>
+            <td data-label="Kegiatan"><strong>{{ row['purpose'] }}</strong><br><span class="muted">{{ row['pic_name'] }} · {{ 'Dosen' if row['borrower_type'] == 'dosen' else 'Mahasiswa' }}</span></td>
+            <td data-label="Ruangan">{% if row['room_id'] %}{{ row['room_code'] }} · {{ row['room_name'] }}{% else %}{{ row['custom_room'] }}{% endif %}</td>
+            <td data-label="Tanggal" class="nowrap">{{ row['date']|tgl_singkat }}</td>
+            <td data-label="Waktu" class="nowrap">{{ row['start_time']|jam }}–{{ row['end_time']|jam }}</td>
+            <td data-label="Status">{{ status_for(item.state) }}</td>
+            <td data-label="Aksi"><a class="text-link" href="{{ url_for('reservation_detail', reservation_id=row['id']) }}">Tinjau {{ icon('arrow-right', 14) }}</a></td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <p class="list-foot">Menampilkan {{ items|length }} reservasi.</p>
+{% else %}
+  {{ empty_state('search', 'Tidak ada reservasi yang cocok', 'Ubah filter status, ruangan, atau rentang tanggal.', url_for('admin_reservations'), 'Reset filter') }}
+{% endif %}
+{% endblock %}

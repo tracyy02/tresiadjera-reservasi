@@ -1,0 +1,158 @@
+{% extends "base.html" %}
+{% from "_icons.html" import icon %}
+{% from "_ui.html" import status_for, empty_state, room_card %}
+{% block title %}Beranda{% endblock %}
+
+{% block content %}
+<section class="page-head">
+  <div class="page-head-copy">
+    <p class="eyebrow">{{ today|tgl }} · WITA</p>
+    <h1>Selamat datang, {{ g.user['name'] }}.</h1>
+    <p class="page-sub">Pantau jadwal Anda dan temukan ruangan yang bebas hari ini.</p>
+  </div>
+  <div class="page-actions">
+    <a class="btn btn--primary" href="{{ url_for('reservation_new') }}">{{ icon('plus', 18) }} Ajukan reservasi</a>
+  </div>
+</section>
+
+<section class="stat-grid" aria-label="Ringkasan reservasi">
+  <article class="stat-card">
+    <span class="stat-icon stat-icon--warning" aria-hidden="true">{{ icon('clock', 20) }}</span>
+    <div>
+      <p class="stat-label">Menunggu persetujuan</p>
+      <p class="stat-value">{{ stats['pending'] }}</p>
+      <p class="stat-hint">Pengajuan yang belum diputuskan admin</p>
+    </div>
+  </article>
+  <article class="stat-card">
+    <span class="stat-icon stat-icon--success" aria-hidden="true">{{ icon('check-circle', 20) }}</span>
+    <div>
+      <p class="stat-label">Disetujui mendatang</p>
+      <p class="stat-value">{{ stats['approved'] }}</p>
+      <p class="stat-hint">Termasuk kegiatan yang sedang berlangsung</p>
+    </div>
+  </article>
+  <article class="stat-card">
+    <span class="stat-icon stat-icon--brand" aria-hidden="true">{{ icon('calendar', 20) }}</span>
+    <div>
+      <p class="stat-label">Reservasi bulan ini</p>
+      <p class="stat-value">{{ stats['month_total'] }}</p>
+      <p class="stat-hint">Seluruh status, akun Anda</p>
+    </div>
+  </article>
+  <article class="stat-card">
+    <span class="stat-icon stat-icon--neutral" aria-hidden="true">{{ icon('door', 20) }}</span>
+    <div>
+      <p class="stat-label">Ruangan aktif</p>
+      <p class="stat-value">{{ stats['active_rooms'] }}</p>
+      <p class="stat-hint"><a href="{{ url_for('rooms') }}">Lihat semua ruangan</a></p>
+    </div>
+  </article>
+</section>
+
+<div class="dashboard-grid">
+  <section class="card" aria-labelledby="upcoming-title">
+    <div class="card-head">
+      <div>
+        <h2 id="upcoming-title">Jadwal terdekat</h2>
+        <p class="card-sub">Pengajuan aktif Anda.</p>
+      </div>
+      <a class="text-link" href="{{ url_for('reservations') }}">Semua reservasi {{ icon('arrow-right', 15) }}</a>
+    </div>
+    {% if upcoming %}
+      <div class="booking-list">
+        {% for row in upcoming %}
+          <a class="upcoming-item" href="{{ url_for('reservation_detail', reservation_id=row['id']) }}">
+            <span class="upcoming-date">
+              <strong>{{ row['date'][8:10] }}</strong>
+              <small>{{ row['date']|bulan }}</small>
+            </span>
+            <span class="upcoming-main">
+              <strong>{{ row['purpose'] }}</strong>
+              <span class="upcoming-meta">
+                {{ row['start_time']|jam }}–{{ row['end_time']|jam }} WITA ·
+                {% if row['room_id'] %}{{ row['room_code'] }} {{ row['room_name'] }}{% else %}{{ row['custom_room'] }}{% endif %}
+              </span>
+              <span class="upcoming-tag">{{ row['date']|relatif }}</span>
+            </span>
+            <span class="upcoming-side">{{ status_for(row|status_state) }}</span>
+          </a>
+        {% endfor %}
+      </div>
+    {% else %}
+      {{ empty_state('calendar', 'Belum ada jadwal mendatang', 'Ajukan ruangan untuk kegiatan Anda. Jadwal yang disetujui akan muncul di sini.', url_for('reservation_new'), 'Ajukan reservasi') }}
+    {% endif %}
+  </section>
+
+  <section class="card" aria-labelledby="available-title">
+    <div class="card-head">
+      <div>
+        <h2 id="available-title">Tersedia sekarang</h2>
+        <p class="card-sub">Ruangan yang bisa langsung diajukan.</p>
+      </div>
+      <a class="text-link" href="{{ url_for('rooms') }}">Semua {{ icon('arrow-right', 15) }}</a>
+    </div>
+    {% if available %}
+      <ul class="available-list">
+        {% for room, state in available %}
+          <li>
+            <a href="{{ url_for('reservation_new', ruangan=room['id']) }}">
+              <span class="available-code">{{ room['code'] }}</span>
+              <span class="available-main">
+                <strong>{{ room['name'] }}</strong>
+                <small>{{ room['building'] }} · {{ room['kind'] }}</small>
+              </span>
+              {{ status_for('available') }}
+            </a>
+          </li>
+        {% endfor %}
+      </ul>
+    {% elif in_use %}
+      <ul class="available-list">
+        {% for room, state in in_use %}
+          <li>
+            <a href="{{ url_for('room_detail', room_id=room['id']) }}">
+              <span class="available-code">{{ room['code'] }}</span>
+              <span class="available-main">
+                <strong>{{ room['name'] }}</strong>
+                <small>{{ state['label'] }}{% if state['booking'] %} hingga {{ state['booking']['end_time']|jam }}{% endif %}</small>
+              </span>
+              {{ status_for('in_use') }}
+            </a>
+          </li>
+        {% endfor %}
+      </ul>
+      <p class="card-note">{{ icon('info', 15) }} Semua ruangan lain sedang dipakai. Lihat jadwal untuk mencari waktu berikutnya.</p>
+    {% else %}
+      {{ empty_state('door', 'Belum ada ruangan aktif', 'Hubungi admin untuk mengaktifkan ruangan kampus.') }}
+    {% endif %}
+  </section>
+</div>
+
+<section class="card" aria-labelledby="agenda-title">
+  <div class="card-head">
+    <div>
+      <h2 id="agenda-title">Agenda kampus hari ini</h2>
+      <p class="card-sub">Kegiatan yang sudah disetujui dan pengajuan yang masih menunggu.</p>
+    </div>
+    <a class="text-link" href="{{ url_for('calendar_view') }}">Buka kalender {{ icon('arrow-right', 15) }}</a>
+  </div>
+  {% if today_agenda %}
+    <div class="agenda-list">
+      {% for row in today_agenda %}
+        <div class="agenda-item">
+          <span class="agenda-time">{{ row['start_time']|jam }}<small>{{ row['end_time']|jam }}</small></span>
+          <span class="agenda-bar" aria-hidden="true"></span>
+          <span class="agenda-main">
+            <strong>{{ row['purpose'] }}</strong>
+            <span>{{ row['pic_name'] }} · {{ row['room_code'] }} {{ row['room_name'] }}</span>
+          </span>
+          {{ status_for(row|status_state) }}
+        </div>
+      {% endfor %}
+    </div>
+  {% else %}
+    {{ empty_state('sun', 'Hari ini masih lengang', 'Belum ada kegiatan yang tercatat. Jadilah yang pertama mengajukan ruangan.') }}
+  {% endif %}
+</section>
+{% endblock %}

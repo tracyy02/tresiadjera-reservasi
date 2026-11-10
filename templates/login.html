@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+{% from "_icons.html" import icon, logo %}
+{% block title %}Masuk{% endblock %}
+{% block body_class %}login-page{% endblock %}
+
+{% block public_content %}
+<div class="login-shell">
+  <section class="login-hero" aria-labelledby="hero-title">
+    <div class="login-hero-art" aria-hidden="true"></div>
+    <div class="login-hero-content">
+      <p class="eyebrow eyebrow--light">Kampus IDB Bali · Bali, Indonesia</p>
+      <div class="hero-copy">
+        <h1 id="hero-title">Ruang untuk<br><em>setiap gagasan.</em></h1>
+        <p class="hero-lede">Satu papan jadwal untuk seluruh civitas akademika. Temukan ruang, ajukan waktu, dan hindari jadwal bertabrakan.</p>
+        <ul class="hero-points">
+          <li>{{ icon('calendar', 18) }} <span>Ketersediaan ruangan yang selalu diperbarui</span></li>
+          <li>{{ icon('shield', 18) }} <span>Pemeriksaan bentrok otomatis, dua arah</span></li>
+          <li>{{ icon('file', 18) }} <span>Riwayat pengajuan yang rapi dan tertelusur</span></li>
+        </ul>
+      </div>
+      <div class="hero-foot">
+        <span>Institut Desain &amp; Bisnis Bali</span>
+        <span class="hero-line" aria-hidden="true"></span>
+        <span>WITA · UTC+8</span>
+      </div>
+    </div>
+  </section>
+
+  <section class="login-panel" aria-labelledby="login-title">
+    <div class="login-pattern" aria-hidden="true"></div>
+    <div class="login-panel-inner">
+      <div class="login-brand">{{ logo(46) }}</div>
+
+      <div class="login-heading">
+        <h2 id="login-title">Masuk ke akun</h2>
+      </div>
+
+      {% if error %}
+        <div class="alert alert--error" role="alert" id="login-error" tabindex="-1">
+          {{ icon('alert', 20) }}
+          <p>{{ error }}</p>
+        </div>
+      {% endif %}
+
+      <form method="post" action="{{ url_for('login') }}" class="login-form" novalidate>
+        <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+        <input type="hidden" name="next" value="{{ next_target }}">
+
+        <div class="field">
+          <label for="username">Email</label>
+          <div class="input-with-icon">
+            {{ icon('user', 19) }}
+            <input id="username" name="username" type="email" inputmode="email" autocomplete="username"
+                   placeholder="nama@idbbali.ac.id" value="{{ username }}" required
+                   {% if error %}aria-describedby="login-error"{% endif %}>
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="password">Kata sandi</label>
+          <div class="input-with-icon input-with-action">
+            {{ icon('lock', 19) }}
+            <input id="password" name="password" type="password" autocomplete="current-password"
+                   placeholder="Masukkan kata sandi" required
+                   {% if error %}aria-describedby="login-error"{% endif %}>
+            <button class="input-action" type="button" data-toggle-password aria-label="Tampilkan kata sandi" aria-pressed="false">
+              <span data-eye-show>{{ icon('eye', 19) }}</span>
+              <span data-eye-hide hidden>{{ icon('eye-off', 19) }}</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="login-actions">
+          <button class="btn btn--help" type="button" data-dialog-open="help-dialog">
+            {{ icon('help', 19) }} Butuh bantuan?
+          </button>
+          <button class="btn btn--primary" type="submit">
+            Masuk {{ icon('arrow-right', 19) }}
+          </button>
+        </div>
+      </form>
+
+      <details class="demo-accounts">
+        <summary>Akun demo untuk uji coba</summary>
+        <div class="demo-grid">
+          <div><span class="demo-role">Mahasiswa</span><code>kean.azkara@idbbali.ac.id</code><span class="demo-sep">/</span><code>123456</code></div>
+          <div><span class="demo-role">Dosen</span><code>tania.moona@idbbali.ac.id</code><span class="demo-sep">/</span><code>tania124</code></div>
+          <div><span class="demo-role">Admin</span><code>admin@idbbali.ac.id</code><span class="demo-sep">/</span><code>idbbali123</code></div>
+        </div>
+      </details>
+
+      <footer class="login-footer">
+        <p>© 2026 Kampus IDB Bali · Bagian Sistem Informasi</p>
+        <p class="login-footer-note">Akses hanya untuk mahasiswa, dosen, dan admin yang berwenang.</p>
+      </footer>
+    </div>
+  </section>
+</div>
+
+<dialog id="help-dialog" class="dialog" aria-labelledby="help-title">
+  <div class="dialog-head">
+    <h2 id="help-title">Tidak bisa masuk?</h2>
+    <button class="icon-link" type="button" data-dialog-close aria-label="Tutup bantuan">{{ icon('x', 20) }}</button>
+  </div>
+  <div class="dialog-body">
+    <p>Akun dibuat dan dikelola oleh admin reservasi kampus. Jika kata sandi hilang atau akun belum aktif, hubungi Bagian Sistem Informasi IDB Bali dengan menyertakan nama lengkap Anda.</p>
+    <ul class="dialog-list">
+      <li>Gunakan email kampus yang terdaftar tanpa spasi.</li>
+      <li>Kata sandi bersifat peka huruf besar dan kecil.</li>
+      <li>Untuk uji coba, gunakan akun demo di atas.</li>
+    </ul>
+  </div>
+  <div class="dialog-foot">
+    <button class="btn btn--primary" type="button" data-dialog-close>Mengerti</button>
+  </div>
+</dialog>
+{% endblock %}

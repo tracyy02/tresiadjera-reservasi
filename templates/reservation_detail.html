@@ -1,0 +1,217 @@
+{% extends "base.html" %}
+{% from "_icons.html" import icon %}
+{% from "_ui.html" import status_for %}
+{% block title %}{{ row['code'] }}{% endblock %}
+
+{% set is_admin = g.user['role'] == 'admin' %}
+{% set borrower_kind = row['borrower_type'] or 'mahasiswa' %}
+{% set borrower_type_label = 'Dosen' if borrower_kind == 'dosen' else 'Mahasiswa' %}
+{% set borrower_name_label = 'Nama dosen' if borrower_kind == 'dosen' else 'Nama mahasiswa' %}
+{% set borrower_id_label = 'NIDN/NIP' if borrower_kind == 'dosen' else 'NIM' %}
+
+{% block content %}
+<nav class="breadcrumb" aria-label="Breadcrumb">
+  <a href="{{ url_for('admin_reservations') if is_admin else url_for('reservations') }}">Reservasi</a>
+  <span aria-hidden="true">/</span>
+  <span aria-current="page">{{ row['code'] }}</span>
+</nav>
+
+<section class="page-head page-head--detail">
+  <div class="page-head-copy">
+    <p class="eyebrow">Kode reservasi · {{ row['code'] }}</p>
+    <h1>{{ row['purpose'] }}</h1>
+    <div class="head-badges">
+      {{ status_for(state) }}
+      <span class="pill pill--quiet">{{ icon('calendar', 15) }} {{ row['date']|tgl }}</span>
+      <span class="pill pill--quiet">{{ icon('clock', 15) }} {{ row['start_time']|jam }}–{{ row['end_time']|jam }} WITA</span>
+    </div>
+  </div>
+  <div class="page-actions">
+    {% if is_admin and row['status'] == 'pending' %}
+      {% if conflicts or pending_conflicts %}
+        <button class="btn btn--secondary" type="button" disabled aria-describedby="conflict-title">{{ icon('check', 18) }} Setujui</button>
+        <button class="btn btn--danger" type="button" data-dialog-open="reject-dialog">{{ icon('x', 18) }} Tolak</button>
+      {% else %}
+        <button class="btn btn--primary" type="button" data-dialog-open="approve-dialog">{{ icon('check', 18) }} Setujui</button>
+        <button class="btn btn--danger-ghost" type="button" data-dialog-open="reject-dialog">{{ icon('x', 18) }} Tolak</button>
+      {% endif %}
+    {% endif %}
+    {% if can_cancel %}
+      <button class="btn btn--danger-ghost" type="button" data-dialog-open="cancel-dialog">{{ icon('ban', 17) }} Batalkan</button>
+    {% endif %}
+  </div>
+</section>
+
+{% if row['status'] == 'rejected' %}
+  <div class="alert alert--error" role="status">
+    {{ icon('x-circle', 20) }}
+    <p><strong>Permohonan ditolak.</strong> {{ row['note'] or 'Admin tidak menyertakan catatan.' }}</p>
+  </div>
+{% elif row['status'] == 'cancelled' %}
+  <div class="alert alert--info" role="status">
+    {{ icon('ban', 20) }}
+    <p><strong>Reservasi dibatalkan.</strong> {{ row['note'] or 'Slot sudah dilepas dari kalender.' }}</p>
+  </div>
+{% elif state == 'in_use' %}
+  <div class="alert alert--info" role="status">
+    {{ icon('door', 20) }}
+    <p><strong>Sedang digunakan.</strong> Kegiatan berlangsung hingga {{ row['end_time']|jam }} WITA.</p>
+  </div>
+{% endif %}
+
+{% if conflicts or pending_conflicts %}
+  <section class="conflict-panel" aria-labelledby="conflict-title">
+    <div class="conflict-head">
+      {{ icon('alert', 20) }}
+      <h2 id="conflict-title">Periksa sebelum menyetujui</h2>
+    </div>
+    <p>Pengajuan ini bertabrakan dengan reservasi lain pada ruangan dan waktu yang sama.</p>
+    <ul>
+      {% for item in conflicts %}
+        <li>
+          <strong>{{ item['start_time']|jam }}–{{ item['end_time']|jam }} WITA</strong>
+          <a href="{{ url_for('reservation_detail', reservation_id=item['id']) }}">{{ item['code'] }}</a>
+          <span>{{ item['pic_name'] }}</span>
+          <span class="badge badge--success">Disetujui</span>
+        </li>
+      {% endfor %}
+      {% for item in pending_conflicts %}
+        <li>
+          <strong>{{ item['start_time']|jam }}–{{ item['end_time']|jam }} WITA</strong>
+          <a href="{{ url_for('reservation_detail', reservation_id=item['id']) }}">{{ item['code'] }}</a>
+          <span>{{ item['pic_name'] }}</span>
+          <span class="badge badge--warning">Menunggu</span>
+        </li>
+      {% endfor %}
+    </ul>
+    {% if conflicts %}
+      <p>Slot ini sudah dipakai reservasi yang disetujui. Pengajuan tidak dapat disetujui; tolak permohonan atau minta pemohon memilih waktu lain.</p>
+    {% else %}
+      <p>Selesaikan pengajuan lain terlebih dahulu (tolak atau setujui) agar tidak ada dua persetujuan pada slot yang sama.</p>
+    {% endif %}
+  </section>
+{% endif %}
+
+<div class="detail-grid">
+  <section class="card" aria-labelledby="info-title">
+    <h2 id="info-title">Detail permohonan</h2>
+    <dl class="detail-list">
+      <div><dt>Jenis peminjam</dt><dd>{{ borrower_type_label }}</dd></div>
+      <div><dt>{{ borrower_name_label }}</dt><dd>{{ row['pic_name'] }}</dd></div>
+      <div><dt>{{ borrower_id_label }}</dt><dd class="mono">{{ row['identity_number'] or '—' }}</dd></div>
+      <div><dt>Kontak</dt><dd>{{ row['pic_phone'] }}</dd></div>
+      <div><dt>Ruangan</dt><dd>
+        {% if row['room_id'] %}<a href="{{ url_for('room_detail', room_id=row['room_id'], tanggal=row['date']) }}">{{ row['room_code'] }} · {{ row['room_name'] }}</a>{% else %}{{ row['custom_room'] }}{% endif %}
+        {% if row['room_building'] %}<br><span class="muted">{{ row['room_building'] }}</span>{% endif %}
+      </dd></div>
+      <div><dt>Tanggal</dt><dd>{{ row['date']|tgl }}</dd></div>
+      <div><dt>Waktu</dt><dd>{{ row['start_time']|jam }}–{{ row['end_time']|jam }} WITA</dd></div>
+      <div><dt>Diajukan</dt><dd>{{ row['created_at']|waktu }}</dd></div>
+      <div><dt>Diproses</dt><dd>{{ row['decided_at']|waktu if row['decided_at'] else 'Belum diproses' }}</dd></div>
+      <div><dt>Admin pemroses</dt><dd>{{ row['admin_name'] or '—' }}</dd></div>
+      <div class="detail-wide"><dt>Tujuan kegiatan</dt><dd>{{ row['purpose'] }}</dd></div>
+      {% if row['note'] %}
+        <div class="detail-wide"><dt>Catatan</dt><dd>{{ row['note'] }}</dd></div>
+      {% endif %}
+    </dl>
+  </section>
+
+  <aside class="detail-side">
+    <section class="card" aria-labelledby="timeline-title">
+      <h2 id="timeline-title">Riwayat status</h2>
+      {% if events %}
+        <ol class="timeline">
+          {% for event in events %}
+            {% set tone = 'success' if event['action'] == 'disetujui' else ('danger' if event['action'] == 'ditolak' else ('neutral' if event['action'] == 'dibatalkan' else 'brand')) %}
+            <li class="timeline-item timeline-item--{{ tone }}">
+              <span class="timeline-dot" aria-hidden="true"></span>
+              <div>
+                <strong>{{ event['action']|capitalize }}</strong>
+                <p class="muted">{{ event['actor_name'] or 'Sistem' }}{% if event['actor_org'] and event['actor_org'] != event['actor_name'] %} · {{ event['actor_org'] }}{% endif %}</p>
+                <time>{{ event['created_at']|waktu }}</time>
+                {% if event['note'] %}<p class="timeline-note">{{ event['note'] }}</p>{% endif %}
+              </div>
+            </li>
+          {% endfor %}
+        </ol>
+      {% else %}
+        <p class="muted">Belum ada riwayat.</p>
+      {% endif %}
+    </section>
+
+    <section class="card" aria-labelledby="help-title">
+      <h2 id="help-title">Butuh perubahan?</h2>
+      <p class="muted">Perubahan waktu atau ruangan dilakukan dengan membatalkan permohonan lalu mengajukan ulang. Hubungi admin bila kegiatan mendesak.</p>
+    </section>
+  </aside>
+</div>
+
+{% if can_cancel %}
+<dialog id="cancel-dialog" class="dialog" aria-labelledby="cancel-title">
+  <form method="post" action="{{ url_for('reservation_cancel', reservation_id=row['id']) }}">
+    <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+    <div class="dialog-head">
+      <h2 id="cancel-title">Batalkan {{ row['code'] }}?</h2>
+      <button class="icon-link" type="button" data-dialog-close aria-label="Tutup dialog">{{ icon('x', 20) }}</button>
+    </div>
+    <div class="dialog-body">
+      <p>Slot {{ row['room_code'] or row['custom_room'] }} pada {{ row['date']|tgl }}, {{ row['start_time']|jam }}–{{ row['end_time']|jam }} WITA akan dilepas dari kalender. Tindakan ini tidak dapat dibatalkan.</p>
+      <div class="field">
+        <label for="cancel-note">Alasan pembatalan <span class="muted">(opsional)</span></label>
+        <textarea id="cancel-note" name="note" rows="3" placeholder="contoh: Kegiatan dijadwalkan ulang."></textarea>
+      </div>
+    </div>
+    <div class="dialog-foot">
+      <button class="btn btn--secondary" type="button" data-dialog-close>Pertahankan</button>
+      <button class="btn btn--danger" type="submit">Ya, batalkan reservasi</button>
+    </div>
+  </form>
+</dialog>
+{% endif %}
+
+{% if is_admin and row['status'] == 'pending' %}
+<dialog id="approve-dialog" class="dialog" aria-labelledby="approve-title">
+  <form method="post" action="{{ url_for('admin_decision', reservation_id=row['id']) }}">
+    <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+    <input type="hidden" name="action" value="approve">
+    <div class="dialog-head">
+      <h2 id="approve-title">Setujui {{ row['code'] }}?</h2>
+      <button class="icon-link" type="button" data-dialog-close aria-label="Tutup dialog">{{ icon('x', 20) }}</button>
+    </div>
+    <div class="dialog-body">
+      <p>Sistem akan memeriksa ulang bentrok. Jika slot masih aman, reservasi disetujui dan pemohon menerima notifikasi.</p>
+      <div class="field">
+        <label for="approve-note">Catatan untuk pemohon <span class="muted">(opsional)</span></label>
+        <textarea id="approve-note" name="note" rows="3" placeholder="contoh: Kunci diambil di resepsionis."></textarea>
+      </div>
+    </div>
+    <div class="dialog-foot">
+      <button class="btn btn--secondary" type="button" data-dialog-close>Batal</button>
+      <button class="btn btn--primary" type="submit">Setujui reservasi</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="reject-dialog" class="dialog" aria-labelledby="reject-title">
+  <form method="post" action="{{ url_for('admin_decision', reservation_id=row['id']) }}">
+    <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+    <input type="hidden" name="action" value="reject">
+    <div class="dialog-head">
+      <h2 id="reject-title">Tolak {{ row['code'] }}?</h2>
+      <button class="icon-link" type="button" data-dialog-close aria-label="Tutup dialog">{{ icon('x', 20) }}</button>
+    </div>
+    <div class="dialog-body">
+      <p>Pemohon akan melihat alasan penolakan. Tuliskan alasan yang jelas agar pemohon dapat mengajukan waktu lain.</p>
+      <div class="field">
+        <label for="reject-note">Alasan penolakan <span class="req" aria-hidden="true">*</span></label>
+        <textarea id="reject-note" name="note" rows="4" required placeholder="contoh: Ruangan dipakai untuk ujian pada jam tersebut."></textarea>
+      </div>
+    </div>
+    <div class="dialog-foot">
+      <button class="btn btn--secondary" type="button" data-dialog-close>Batal</button>
+      <button class="btn btn--danger" type="submit">Tolak permohonan</button>
+    </div>
+  </form>
+</dialog>
+{% endif %}
+{% endblock %}
