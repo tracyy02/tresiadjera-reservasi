@@ -2,6 +2,7 @@ import hmac
 import os
 import re
 import secrets
+import tempfile
 from datetime import date, datetime, timedelta
 from functools import wraps
 from pathlib import Path
@@ -41,25 +42,36 @@ from services import (
 BASE_DIR = Path(__file__).resolve().parent
 INSTANCE_DIR = BASE_DIR / "instance"
 
+# Vercel/Lambda menyediakan filesystem read-only kecuali direktori temp.
+IS_SERVERLESS = bool(
+    os.environ.get("VERCEL") or os.environ.get("AWS_LAMBDA_FUNCTION_NAME")
+)
+DATA_DIR = Path(tempfile.gettempdir()) / "idb_room" if IS_SERVERLESS else INSTANCE_DIR
+
 
 def load_secret_key():
-    INSTANCE_DIR.mkdir(parents=True, exist_ok=True)
-    path = INSTANCE_DIR / "secret_key"
-    if path.exists():
-        return path.read_text().strip()
-    key = secrets.token_hex(32)
-    path.write_text(key)
-    try:
-        os.chmod(path, 0o600)
-    except OSError:
-        pass
-    return key
+    for directory in (DATA_DIR, INSTANCE_DIR):
+        try:
+            directory.mkdir(parents=True, exist_ok=True)
+            path = directory / "secret_key"
+            if path.exists():
+                return path.read_text().strip()
+            key = secrets.token_hex(32)
+            path.write_text(key)
+            try:
+                os.chmod(path, 0o600)
+            except OSError:
+                pass
+            return key
+        except OSError:
+            continue
+    return secrets.token_hex(32)
 
 
 app = Flask(__name__, instance_relative_config=False)
 app.config.update(
     SECRET_KEY=os.environ.get("IDB_SECRET_KEY") or load_secret_key(),
-    DATABASE=os.environ.get("IDB_DATABASE", str(INSTANCE_DIR / "idb_room.sqlite")),
+    DATABASE=os.environ.get("IDB_DATABASE", str(DATA_DIR / "idb_room.sqlite")),
     SESSION_COOKIE_HTTPONLY=True,
     SESSION_COOKIE_SAMESITE="Lax",
     PERMANENT_SESSION_LIFETIME=timedelta(hours=12),
