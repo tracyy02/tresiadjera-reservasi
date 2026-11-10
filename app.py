@@ -1,3 +1,4 @@
+import hashlib
 import hmac
 import os
 import re
@@ -68,9 +69,27 @@ def load_secret_key():
     return secrets.token_hex(32)
 
 
+def resolve_secret_key():
+    env_key = os.environ.get("IDB_SECRET_KEY")
+    if env_key:
+        return env_key
+    if IS_SERVERLESS:
+        # Setiap instance serverless punya filesystem /tmp sendiri, jadi secret
+        # acak per-proses membuat cookie sesi/CSRF tidak valid antar-instance
+        # (gejala: "Sesi formulir kedaluwarsa" 400 saat login). Turunkan secret
+        # yang stabil per-deployment agar semua instance sepakat.
+        seed = (
+            os.environ.get("VERCEL_DEPLOYMENT_ID")
+            or os.environ.get("VERCEL_URL")
+            or "idb-room-serverless"
+        )
+        return hashlib.sha256(f"idb-room-session::{seed}".encode()).hexdigest()
+    return load_secret_key()
+
+
 app = Flask(__name__, instance_relative_config=False)
 app.config.update(
-    SECRET_KEY=os.environ.get("IDB_SECRET_KEY") or load_secret_key(),
+    SECRET_KEY=resolve_secret_key(),
     DATABASE=os.environ.get("IDB_DATABASE", str(DATA_DIR / "idb_room.sqlite")),
     SESSION_COOKIE_HTTPONLY=True,
     SESSION_COOKIE_SAMESITE="Lax",
